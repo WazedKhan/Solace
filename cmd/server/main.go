@@ -20,7 +20,12 @@ func main() {
 	defer pool.Close()
 	log.Println("database connected")
 
+	repo := auth.NewRepository(pool)
+	service := auth.NewService(repo)
+	authHandler := auth.NewHandler(service)
+
 	mux.HandleFunc("/api/v1/login", auth.LoginHandler)
+	mux.HandleFunc("/api/v1/register", authHandler.Register)
 
 	port := os.Getenv("PORT")
 	if port == "" {
