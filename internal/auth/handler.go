@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/WazedKhan/Solace/internal/auth/utils"
 )
@@ -62,5 +63,43 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(res)
+}
+
+func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	limit, err := strconv.Atoi(queryParams.Get("limit"))
+	if err != nil {
+		limit = 10
+	}
+
+	offset, err := strconv.Atoi(queryParams.Get("offset"))
+	if err != nil {
+		offset = 0
+	}
+
+	query := GetUserQuery{
+		Limit:  limit,
+		Offset: offset,
+		Search: queryParams.Get("search"),
+	}
+
+	users, err := h.service.GetUsers(r.Context(), query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var res []UserResponse
+	for _, user := range users {
+		res = append(res, UserResponse{
+			ID:        user.ID,
+			Name:      user.Name,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+		})
+	}
+
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
 }

@@ -2,7 +2,9 @@ BINARY_NAME := solace
 BUILD_DIR := bin
 MAIN_PACKAGE_PATH := ./cmd/server
 
-.PHONY: all build run test clean tidy help
+DB_URL=postgres://solace:strong-password@localhost:5432/solace?sslmode=disable
+
+.PHONY: all build run test clean tidy help migrate-up migrate-down migrate-create
 
 all: tidy test build
 
@@ -26,12 +28,12 @@ tidy:
 test:
 	@go test ./...
 
-DB_URL=postgres://solace:strong-password@localhost:5432/solace?sslmode=disable
-
 migrate-up:
+	@echo "⬆️ Running migrations up..."
 	migrate -path migrations -database "$(DB_URL)" up
 
 migrate-down:
+	@echo "⬇️ Running migrations down..."
 	migrate -path migrations -database "$(DB_URL)" down 1
 
 migrate-create:
