@@ -16,9 +16,9 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 
 func (r *Repository) CreateUser(ctx context.Context, user User) (*User, error) {
 	query := `
-		INSERT INTO users(id, name, email, password)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, name, email, created_at
+		INSERT INTO users(id, name, email, password, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, name, email, password, created_at
 	`
 	var created User
 	err := r.db.QueryRow(
@@ -27,11 +27,13 @@ func (r *Repository) CreateUser(ctx context.Context, user User) (*User, error) {
 		user.ID,
 		user.Name,
 		user.Email,
+		user.PasswordHash,
 		user.CreatedAt,
 	).Scan(
 		&created.ID,
 		&created.Name,
 		&created.Email,
+		&created.PasswordHash,
 		&created.CreatedAt,
 	)
 
@@ -39,4 +41,44 @@ func (r *Repository) CreateUser(ctx context.Context, user User) (*User, error) {
 		return nil, mapPostgresError(err)
 	}
 	return &created, nil
+}
+
+func (r *Repository) GetUsers(ctx context.Context, q GetUserQuery) ([]User, error) {
+	query := `
+	SELECT id, name, email, created_at
+	FROM users
+	WHERE (
+		$1 = ''
+		OR name ILIKE '%' || $1 || '%'
+		OR email ILIKE '%' || $1 || '%'
+	)
+	ORDER BY created_at DESC
+	LIMIT $2 OFFSET $3
+`
+	rows, err := r.db.Query(ctx, query, q.Search, q.Limit, q.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+
+		err := rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }

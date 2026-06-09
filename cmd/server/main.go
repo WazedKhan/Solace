@@ -26,6 +26,7 @@ func main() {
 
 	mux.HandleFunc("/api/v1/login", auth.LoginHandler)
 	mux.HandleFunc("/api/v1/register", authHandler.Register)
+	mux.HandleFunc("/api/v1/users", authHandler.GetUsers)
 
 	port := os.Getenv("PORT")
 	if port == "" {

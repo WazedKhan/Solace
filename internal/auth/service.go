@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -29,6 +30,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*User, err
 		Name:         req.Name,
 		Email:        req.Email,
 		PasswordHash: string(hash),
+		CreatedAt:    time.Now(),
 	}
 
 	created, err := s.repo.CreateUser(ctx, user)
@@ -37,4 +39,16 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*User, err
 	}
 
 	return created, nil
+}
+
+func (s *Service) GetUsers(ctx context.Context, q GetUserQuery) ([]User, error) {
+	if q.Limit <= 0 || q.Limit > 100 {
+		q.Limit = 10
+	}
+
+	if q.Offset < 0 {
+		q.Offset = 0
+	}
+
+	return s.repo.GetUsers(ctx, q)
 }
