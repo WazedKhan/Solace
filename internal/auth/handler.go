@@ -2,12 +2,9 @@ package auth
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-
-	"github.com/WazedKhan/Solace/internal/auth/utils"
 )
 
 type Handler struct {
@@ -18,20 +15,7 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	password := "wazed"
-	hashed_password, err := utils.HashPassword(password)
-	if err != nil {
-		log.Println("failed to hash the password!", err)
-	}
-	fmt.Fprintln(w, hashed_password)
-}
-
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	var req RegisterRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -50,7 +34,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 			http.Error(w, "internal server error", http.StatusInternalServerError)
-			log.Panicln(err)
+			log.Println(err)
 			return
 		}
 
@@ -61,9 +45,11 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Name:  user.Name,
 		Email: user.Email,
 	}
-
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(res)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		log.Println(err)
+	}
 }
 
 func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +76,7 @@ func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var res []UserResponse
+	res := make([]UserResponse, 0)
 	for _, user := range users {
 		res = append(res, UserResponse{
 			ID:        user.ID,
@@ -99,7 +85,8 @@ func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: user.CreatedAt,
 		})
 	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		log.Println(err)
+	}
 }

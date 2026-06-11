@@ -8,11 +8,17 @@ import (
 	"github.com/WazedKhan/Solace/db"
 	"github.com/WazedKhan/Solace/internal/auth"
 	"github.com/WazedKhan/Solace/middleware"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load()
 	mux := http.NewServeMux()
-	dsn := "postgres://solace:strong-password@localhost:5432/solace"
+
+	dsn := os.Getenv("DSN")
+	if dsn == "" {
+		log.Panicln("database connection string is missing")
+	}
 
 	pool, err := db.NewPool(dsn)
 	if err != nil {
@@ -25,12 +31,10 @@ func main() {
 	service := auth.NewService(repo)
 	authHandler := auth.NewHandler(service)
 
-	mux.HandleFunc("/api/v1/login", auth.LoginHandler)
-	mux.HandleFunc("/api/v1/register", authHandler.Register)
+	mux.HandleFunc("POST /api/v1/register", authHandler.Register)
 	mux.HandleFunc("/api/v1/users", authHandler.GetUsers)
 
-	middleware := middleware.RequestLog(mux)
-
+	handler := middleware.RequestLog(mux)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
@@ -42,14 +46,12 @@ func main() {
 	}
 
 	addr := ":" + port
-
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: middleware,
+		Handler: handler,
 	}
 
 	log.Printf("server starting at http://%s:%s", server, port)
-
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}

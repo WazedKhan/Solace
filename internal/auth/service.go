@@ -16,12 +16,19 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
+// bcryptCost of 12 balances security and registration latency (~300ms on modest hardware)
+const bcryptCost = 12
+
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*User, error) {
 	if req.Email == "" {
 		return nil, ErrInvalidInput
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 14)
+	if req.Password == "" {
+		return nil, ErrInvalidInput
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcryptCost)
 	if err != nil {
 		return nil, err
 	}
