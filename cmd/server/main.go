@@ -35,7 +35,6 @@ func main() {
 	mux.HandleFunc("/api/v1/users", authHandler.GetUsers)
 
 	handler := middleware.RequestLog(mux)
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
@@ -47,14 +46,12 @@ func main() {
 	}
 
 	addr := ":" + port
-
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: handler,
 	}
 
 	log.Printf("server starting at http://%s:%s", server, port)
-
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
