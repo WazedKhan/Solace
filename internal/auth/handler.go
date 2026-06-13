@@ -37,7 +37,6 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 			return
 		}
-
 	}
 
 	res := RegisterResponse{
@@ -86,6 +85,37 @@ func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		log.Println(err)
+	}
+}
+
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	var req LoginRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := h.service.Login(r.Context(), req)
+	if err != nil {
+		switch err {
+		case ErrInvalidCredentials:
+			http.Error(w, "email or password didn't match", http.StatusUnauthorized)
+			return
+		case ErrInvalidInput:
+			http.Error(w, "invalid input", http.StatusBadRequest)
+			return
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			log.Println(err)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(res); err != nil {
 		log.Println(err)
 	}

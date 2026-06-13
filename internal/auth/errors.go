@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -14,8 +15,11 @@ var (
 )
 
 func mapPostgresError(err error) error {
-	var pgErr *pgconn.PgError
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrUserNotFound
+	}
 
+	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		if pgErr.Code == "23505" {
 			return ErrEmailAlreadyExists

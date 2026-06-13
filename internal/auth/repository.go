@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -36,7 +37,6 @@ func (r *Repository) CreateUser(ctx context.Context, user User) (*User, error) {
 		&created.PasswordHash,
 		&created.CreatedAt,
 	)
-
 	if err != nil {
 		return nil, mapPostgresError(err)
 	}
@@ -81,4 +81,22 @@ func (r *Repository) GetUsers(ctx context.Context, q GetUserQuery) ([]User, erro
 	}
 
 	return users, nil
+}
+
+func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	query := `SELECT id, name, email, password, created_at FROM users WHERE email = $1`
+
+	var user User
+	err := r.db.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+	)
+	if err != nil {
+		log.Println(err)
+		return nil, mapPostgresError(err)
+	}
+	return &user, nil
 }

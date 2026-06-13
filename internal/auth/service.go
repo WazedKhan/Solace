@@ -4,16 +4,21 @@ import (
 	"context"
 	"time"
 
+	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
-	repo *Repository
+	repo      *Repository
+	generator *jwt_token.Generator
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, generator *jwt_token.Generator) *Service {
+	return &Service{
+		repo:      repo,
+		generator: generator,
+	}
 }
 
 // bcryptCost of 12 balances security and registration latency (~300ms on modest hardware)
@@ -58,4 +63,31 @@ func (s *Service) GetUsers(ctx context.Context, q GetUserQuery) ([]User, error) 
 	}
 
 	return s.repo.GetUsers(ctx, q)
+}
+
+func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
+	if req.Email == "" || req.Password == "" {
+		return nil, ErrInvalidInput
+	}
+	user, err := s.repo.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(user.PasswordHash),
+		[]byte(req.Password),
+	); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	token, err := s.generator.Generate(user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResponse{
+		AccessToken: token,
+		TokenType:   "Bearer",
+	}, nil
 }
