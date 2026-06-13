@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
+
+	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 )
 
 type Handler struct {
@@ -51,45 +52,6 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	limit, err := strconv.Atoi(queryParams.Get("limit"))
-	if err != nil {
-		limit = 10
-	}
-
-	offset, err := strconv.Atoi(queryParams.Get("offset"))
-	if err != nil {
-		offset = 0
-	}
-
-	query := GetUserQuery{
-		Limit:  limit,
-		Offset: offset,
-		Search: queryParams.Get("search"),
-	}
-
-	users, err := h.service.GetUsers(r.Context(), query)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	res := make([]UserResponse, 0)
-	for _, user := range users {
-		res = append(res, UserResponse{
-			ID:        user.ID,
-			Name:      user.Name,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-		})
-	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		log.Println(err)
-	}
-}
-
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 
@@ -112,6 +74,32 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 			return
 		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		log.Println(err)
+	}
+}
+
+func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
+	userId, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+	user, err := h.service.Me(r.Context(), userId)
+	if err != nil {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	res := UserResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -100,3 +100,21 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*User, e
 	}
 	return &user, nil
 }
+
+func (r *Repository) GetUserByID(ctx context.Context, userID string) (*User, error) {
+	query := `SELECT id, name, email, password, created_at FROM users WHERE id=$1`
+
+	var user User
+	err := r.db.QueryRow(ctx, query, userID).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+	)
+	if err != nil {
+		log.Println(err)
+		return nil, mapPostgresError(err)
+	}
+	return &user, nil
+}

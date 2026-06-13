@@ -53,18 +53,6 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*User, err
 	return created, nil
 }
 
-func (s *Service) GetUsers(ctx context.Context, q GetUserQuery) ([]User, error) {
-	if q.Limit <= 0 || q.Limit > 100 {
-		q.Limit = 10
-	}
-
-	if q.Offset < 0 {
-		q.Offset = 0
-	}
-
-	return s.repo.GetUsers(ctx, q)
-}
-
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	if req.Email == "" || req.Password == "" {
 		return nil, ErrInvalidInput
@@ -90,4 +78,13 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResponse, 
 		AccessToken: token,
 		TokenType:   "Bearer",
 	}, nil
+}
+
+func (s *Service) Me(ctx context.Context, userID string) (*User, error) {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
