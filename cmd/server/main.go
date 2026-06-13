@@ -51,7 +51,13 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/login", authHandler.Login)
-	mux.HandleFunc("/api/v1/users", authHandler.GetUsers)
+	mux.Handle(
+		"GET /api/v1/me",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(authHandler.Me),
+		),
+	)
 
 	handler := middleware.RequestLog(mux)
 	port := os.Getenv("PORT")
