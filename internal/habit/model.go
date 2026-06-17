@@ -3,7 +3,7 @@ package habit
 import (
 	"time"
 
-	"github.com/WazedKhan/Solace/models"
+	"github.com/WazedKhan/Solace/internal/pagination"
 )
 
 type Habit struct {
@@ -36,6 +36,6 @@ type CheckInResponse struct {
 }
 
 type HabitQueryRequest struct {
-	QueryParams models.QueryParams
+	QueryParams pagination.QueryParams
 	UserID      string
 }

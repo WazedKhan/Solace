@@ -1,4 +1,4 @@
-package models
+package pagination
 
 type QueryParams struct {
 	Limit  int `json:"limit"`
