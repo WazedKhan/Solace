@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
+	"github.com/WazedKhan/Solace/internal/utils"
 )
 
 type Handler struct {
@@ -30,7 +31,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		case ErrEmailAlreadyExists:
 			http.Error(w, "email already exists", http.StatusConflict)
 			return
-		case ErrInvalidInput:
+		case utils.ErrInvalidInput:
 			http.Error(w, "invalid input", http.StatusBadRequest)
 			return
 		default:
@@ -66,7 +67,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		case ErrInvalidCredentials:
 			http.Error(w, "email or password didn't match", http.StatusUnauthorized)
 			return
-		case ErrInvalidInput:
+		case utils.ErrInvalidInput:
 			http.Error(w, "invalid input", http.StatusBadRequest)
 			return
 		default:

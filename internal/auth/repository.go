@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/WazedKhan/Solace/internal/utils"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -38,7 +39,7 @@ func (r *Repository) CreateUser(ctx context.Context, user User) (*User, error) {
 		&created.CreatedAt,
 	)
 	if err != nil {
-		return nil, mapPostgresError(err)
+		return nil, utils.MapPostgresError(err)
 	}
 	return &created, nil
 }
@@ -96,7 +97,7 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*User, e
 	)
 	if err != nil {
 		log.Println(err)
-		return nil, mapPostgresError(err)
+		return nil, utils.MapPostgresError(err)
 	}
 	return &user, nil
 }
@@ -114,7 +115,7 @@ func (r *Repository) GetUserByID(ctx context.Context, userID string) (*User, err
 	)
 	if err != nil {
 		log.Println(err)
-		return nil, mapPostgresError(err)
+		return nil, utils.MapPostgresError(err)
 	}
 	return &user, nil
 }

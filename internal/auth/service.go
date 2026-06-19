@@ -5,6 +5,7 @@ import (
 	"time"
 
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
+	"github.com/WazedKhan/Solace/internal/utils"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -26,11 +27,11 @@ const bcryptCost = 12
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*User, error) {
 	if req.Email == "" {
-		return nil, ErrInvalidInput
+		return nil, utils.ErrInvalidInput
 	}
 
 	if req.Password == "" {
-		return nil, ErrInvalidInput
+		return nil, utils.ErrInvalidInput
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcryptCost)
@@ -55,7 +56,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*User, err
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	if req.Email == "" || req.Password == "" {
-		return nil, ErrInvalidInput
+		return nil, utils.ErrInvalidInput
 	}
 	user, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
