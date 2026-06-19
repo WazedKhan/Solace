@@ -68,6 +68,8 @@ func (r *HabitRepository) GetHabitsByUserID(ctx context.Context, qParams HabitQu
 	if err != nil {
 		return []Habit{}, utils.MapPostgresError(err)
 	}
+	defer rows.Close()
+
 	var habits []Habit
 	for rows.Next() {
 		var habit Habit
@@ -82,12 +84,12 @@ func (r *HabitRepository) GetHabitsByUserID(ctx context.Context, qParams HabitQu
 			&habit.UpdatedAt,
 		)
 		if err != nil {
-			return []Habit{}, err
+			return []Habit{}, utils.MapPostgresError(err)
 		}
 		habits = append(habits, habit)
 	}
 	if err := rows.Err(); err != nil {
-		return []Habit{}, err
+		return []Habit{}, utils.MapPostgresError(err)
 	}
 
 	return habits, nil
