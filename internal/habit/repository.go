@@ -11,15 +11,15 @@ import (
 
 var ErrFailedWriting = errors.New("failed to write into db")
 
-type HabitRepository struct {
+type Repository struct {
 	db *pgxpool.Pool
 }
 
-func NewHabitRepository(db *pgxpool.Pool) *HabitRepository {
-	return &HabitRepository{db: db}
+func NewRepository(db *pgxpool.Pool) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *HabitRepository) CreateHabit(ctx context.Context, habit Habit) (*Habit, error) {
+func (r *Repository) CreateHabit(ctx context.Context, habit Habit) (*Habit, error) {
 	query := `
 		INSERT INTO habits (id, user_id, title, image_url)
 		VALUES($1, $2, $3, $4)
@@ -50,7 +50,7 @@ func (r *HabitRepository) CreateHabit(ctx context.Context, habit Habit) (*Habit,
 	return &habitRes, nil
 }
 
-func (r *HabitRepository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRequest) ([]Habit, error) {
+func (r *Repository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRequest) ([]Habit, error) {
 	query := `
 		SELECT id, title, user_id, image_url, current_streak, last_checked_at, created_at, updated_at
 		FROM habits
@@ -95,7 +95,7 @@ func (r *HabitRepository) GetHabitsByUserID(ctx context.Context, qParams HabitQu
 	return habits, nil
 }
 
-func (r *HabitRepository) CheckHabitByID(ctx context.Context, habitID string, cStreak int) (*int, error) {
+func (r *Repository) CheckHabitByID(ctx context.Context, habitID string, cStreak int) (*int, error) {
 	query := `
 		UPDATE habits
 		SET last_checked_at=$1,
@@ -120,7 +120,7 @@ func (r *HabitRepository) CheckHabitByID(ctx context.Context, habitID string, cS
 	return &currentStreak, nil
 }
 
-func (r *HabitRepository) CreateHabitCheckingLog(ctx context.Context, habitID string) error {
+func (r *Repository) CreateHabitCheckingLog(ctx context.Context, habitID string) error {
 	query := `
 		INSERT INTO habit_checking(habit_id, checked_date)
 		VALUES($1, $2)
