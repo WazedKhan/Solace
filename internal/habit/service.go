@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/WazedKhan/Solace/internal/pagination"
+	"github.com/WazedKhan/Solace/internal/utils"
 	"github.com/google/uuid"
 )
 
@@ -34,4 +36,60 @@ func (s *Service) CreateHabit(ctx context.Context, req HabitRequest, userId stri
 	}
 
 	return res, nil
+}
+
+func (s *Service) GetHabitsByUserID(
+	ctx context.Context,
+	userId string,
+	params pagination.QueryParams,
+) ([]*Habit, error) {
+	qParams := HabitQueryRequest{
+		QueryParams: params,
+		UserID:      userId,
+	}
+	res, err := s.repo.GetHabitsByUserID(ctx, qParams)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
+}
+
+func (s *Service) CheckIn(ctx context.Context, userId, habitId string) (*int, error) {
+	habit, err := s.repo.GetHabitByID(ctx, habitId)
+	if err != nil {
+		return nil, err
+	}
+
+	// check if the habit belong to requested user
+	if habit.UserID != userId {
+		return nil, ErrInvalidHabitID
+	}
+
+	// fetch the last_checked_at
+	today := time.Now()
+	switch {
+	case habit.LastCheckedAt == nil:
+		habit.CurrentStreak = 1
+
+	case utils.IsSameDay(*habit.LastCheckedAt, today):
+		return nil, ErrAlreadyChecked
+
+	case utils.IsSameDay(*habit.LastCheckedAt, today.AddDate(0, 0, -1)):
+		habit.CurrentStreak++
+
+	default:
+		habit.CurrentStreak = 1
+	}
+
+	err = s.repo.CreateHabitCheckingLog(ctx, habitId)
+	if err != nil {
+		return nil, err
+	}
+
+	currentStreak, err := s.repo.CheckHabitByID(ctx, habitId, habit.CurrentStreak)
+	if err != nil {
+		return nil, err
+	}
+
+	return currentStreak, nil
 }

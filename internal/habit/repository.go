@@ -50,7 +50,7 @@ func (r *Repository) CreateHabit(ctx context.Context, habit Habit) (*Habit, erro
 	return &habitRes, nil
 }
 
-func (r *Repository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRequest) ([]Habit, error) {
+func (r *Repository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRequest) ([]*Habit, error) {
 	query := `
 		SELECT id, title, user_id, image_url, current_streak, last_checked_at, created_at, updated_at
 		FROM habits
@@ -66,11 +66,11 @@ func (r *Repository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRe
 		qParams.QueryParams.Offset,
 	)
 	if err != nil {
-		return []Habit{}, utils.MapPostgresError(err)
+		return []*Habit{}, utils.MapPostgresError(err)
 	}
 	defer rows.Close()
 
-	var habits []Habit
+	var habits []*Habit
 	for rows.Next() {
 		var habit Habit
 		err := rows.Scan(
@@ -84,15 +84,38 @@ func (r *Repository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRe
 			&habit.UpdatedAt,
 		)
 		if err != nil {
-			return []Habit{}, utils.MapPostgresError(err)
+			return []*Habit{}, utils.MapPostgresError(err)
 		}
-		habits = append(habits, habit)
+		habits = append(habits, &habit)
 	}
 	if err := rows.Err(); err != nil {
-		return []Habit{}, utils.MapPostgresError(err)
+		return []*Habit{}, utils.MapPostgresError(err)
 	}
 
 	return habits, nil
+}
+
+func (r *Repository) GetHabitByID(ctx context.Context, habitId string) (*Habit, error) {
+	query := `
+		SELECT id, title, user_id, image_url, current_streak, last_checked_at, created_at, updated_at
+		FROM habits
+		WHERE id=$1
+	`
+	var habit Habit
+	err := r.db.QueryRow(ctx, query, habitId).Scan(
+		&habit.ID,
+		&habit.Title,
+		&habit.UserID,
+		&habit.ImageUrl,
+		&habit.CurrentStreak,
+		&habit.LastCheckedAt,
+		&habit.CreatedAt,
+		&habit.UpdatedAt,
+	)
+	if err != nil {
+		return nil, utils.MapPostgresError(err)
+	}
+	return &habit, err
 }
 
 func (r *Repository) CheckHabitByID(ctx context.Context, habitID string, cStreak int) (*int, error) {
