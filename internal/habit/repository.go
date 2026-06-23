@@ -6,20 +6,21 @@ import (
 	"time"
 
 	"github.com/WazedKhan/Solace/internal/utils"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrFailedWriting = errors.New("failed to write into db")
 
-type HabitRepository struct {
+type Repository struct {
 	db *pgxpool.Pool
 }
 
-func NewHabitRepository(db *pgxpool.Pool) *HabitRepository {
-	return &HabitRepository{db: db}
+func NewRepository(db *pgxpool.Pool) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *HabitRepository) CreateHabit(ctx context.Context, habit Habit) (*Habit, error) {
+func (r *Repository) CreateHabit(ctx context.Context, habit Habit) (*Habit, error) {
 	query := `
 		INSERT INTO habits (id, user_id, title, image_url)
 		VALUES($1, $2, $3, $4)
@@ -50,7 +51,7 @@ func (r *HabitRepository) CreateHabit(ctx context.Context, habit Habit) (*Habit,
 	return &habitRes, nil
 }
 
-func (r *HabitRepository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRequest) ([]Habit, error) {
+func (r *Repository) GetHabitsByUserID(ctx context.Context, qParams HabitQueryRequest) ([]*Habit, error) {
 	query := `
 		SELECT id, title, user_id, image_url, current_streak, last_checked_at, created_at, updated_at
 		FROM habits
@@ -66,11 +67,11 @@ func (r *HabitRepository) GetHabitsByUserID(ctx context.Context, qParams HabitQu
 		qParams.QueryParams.Offset,
 	)
 	if err != nil {
-		return []Habit{}, utils.MapPostgresError(err)
+		return []*Habit{}, utils.MapPostgresError(err)
 	}
 	defer rows.Close()
 
-	var habits []Habit
+	var habits []*Habit
 	for rows.Next() {
 		var habit Habit
 		err := rows.Scan(
@@ -84,18 +85,41 @@ func (r *HabitRepository) GetHabitsByUserID(ctx context.Context, qParams HabitQu
 			&habit.UpdatedAt,
 		)
 		if err != nil {
-			return []Habit{}, utils.MapPostgresError(err)
+			return []*Habit{}, utils.MapPostgresError(err)
 		}
-		habits = append(habits, habit)
+		habits = append(habits, &habit)
 	}
 	if err := rows.Err(); err != nil {
-		return []Habit{}, utils.MapPostgresError(err)
+		return []*Habit{}, utils.MapPostgresError(err)
 	}
 
 	return habits, nil
 }
 
-func (r *HabitRepository) CheckHabitByID(ctx context.Context, habitID string, cStreak int) (*int, error) {
+func (r *Repository) GetHabitByID(ctx context.Context, habitId string) (*Habit, error) {
+	query := `
+		SELECT id, title, user_id, image_url, current_streak, last_checked_at, created_at, updated_at
+		FROM habits
+		WHERE id=$1
+	`
+	var habit Habit
+	err := r.db.QueryRow(ctx, query, habitId).Scan(
+		&habit.ID,
+		&habit.Title,
+		&habit.UserID,
+		&habit.ImageUrl,
+		&habit.CurrentStreak,
+		&habit.LastCheckedAt,
+		&habit.CreatedAt,
+		&habit.UpdatedAt,
+	)
+	if err != nil {
+		return nil, utils.MapPostgresError(err)
+	}
+	return &habit, err
+}
+
+func (r *Repository) CheckHabitByID(ctx context.Context, habitID string, cStreak int) (*int, error) {
 	query := `
 		UPDATE habits
 		SET last_checked_at=$1,
@@ -120,7 +144,7 @@ func (r *HabitRepository) CheckHabitByID(ctx context.Context, habitID string, cS
 	return &currentStreak, nil
 }
 
-func (r *HabitRepository) CreateHabitCheckingLog(ctx context.Context, habitID string) error {
+func (r *Repository) CreateHabitCheckingLog(ctx context.Context, habitID string) error {
 	query := `
 		INSERT INTO habit_checking(habit_id, checked_date)
 		VALUES($1, $2)
@@ -130,4 +154,39 @@ func (r *HabitRepository) CreateHabitCheckingLog(ctx context.Context, habitID st
 		return utils.MapPostgresError(err)
 	}
 	return nil
+}
+
+func (r *Repository) CheckingInTx(ctx context.Context, habitID string, newStreak int, now time.Time) (*int, error) {
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx,
+		`
+		INSERT INTO habit_checking(habit_id, checked_date, created_at)
+		VALUES($1, $2, $3)
+		`, habitID, now.UTC(), now.UTC(),
+	)
+	if err != nil {
+		return nil, utils.MapPostgresError(err)
+	}
+
+	var currentStreak int
+	err = tx.QueryRow(ctx, `
+        UPDATE habits
+        SET last_checked_at=$1, current_streak=$2, updated_at=$3
+        WHERE id=$4
+        RETURNING current_streak
+    `, now.UTC(), newStreak, now.UTC(), habitID).Scan(&currentStreak)
+	if err != nil {
+		return nil, utils.MapPostgresError(err)
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &currentStreak, nil
 }

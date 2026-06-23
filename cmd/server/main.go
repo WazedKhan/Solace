@@ -10,6 +10,7 @@ import (
 	"github.com/WazedKhan/Solace/db"
 	"github.com/WazedKhan/Solace/internal/auth"
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
+	"github.com/WazedKhan/Solace/internal/habit"
 	"github.com/WazedKhan/Solace/middleware"
 	"github.com/joho/godotenv"
 )
@@ -45,9 +46,15 @@ func main() {
 		time.Duration(ttlHours)*time.Hour,
 	)
 
+	// auth
 	repo := auth.NewRepository(pool)
 	service := auth.NewService(repo, generator)
 	authHandler := auth.NewHandler(service)
+
+	// habit
+	habitRepo := habit.NewRepository(pool)
+	habitService := habit.NewService(habitRepo)
+	habitHandler := habit.NewHandler(habitService)
 
 	mux.HandleFunc("POST /api/v1/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/login", authHandler.Login)
@@ -56,6 +63,28 @@ func main() {
 		middleware.AuthMiddleware(
 			generator,
 			http.HandlerFunc(authHandler.Me),
+		),
+	)
+	// habit routes
+	mux.Handle(
+		"POST /api/v1/habits",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(habitHandler.CreateHabit),
+		),
+	)
+	mux.Handle(
+		"GET /api/v1/habits",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(habitHandler.GetHabits),
+		),
+	)
+	mux.Handle(
+		"POST /api/v1/habits/{id}/check-in",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(habitHandler.CheckIn),
 		),
 	)
 
