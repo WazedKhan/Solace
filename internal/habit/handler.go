@@ -47,9 +47,17 @@ func (h *Handler) CreateHabit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	response := HabitResponse{
+		ID:            res.ID,
+		Title:         res.Title,
+		ImageUrl:      res.ImageUrl,
+		CurrentStreak: res.CurrentStreak,
+		CreatedAt:     res.CreatedAt,
+		UpdatedAt:     res.UpdatedAt,
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(res); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Println(err)
 	}
 }
@@ -91,9 +99,22 @@ func (h *Handler) GetHabits(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	response := make([]HabitResponse, 0)
+
+	for _, h := range res {
+		response = append(response, HabitResponse{
+			ID:            h.ID,
+			Title:         h.Title,
+			ImageUrl:      h.ImageUrl,
+			CurrentStreak: h.CurrentStreak,
+			CreatedAt:     h.CreatedAt,
+			UpdatedAt:     h.UpdatedAt,
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(res); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Println(err)
 	}
 }
