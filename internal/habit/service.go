@@ -81,12 +81,7 @@ func (s *Service) CheckIn(ctx context.Context, userId, habitId string) (*int, er
 		habit.CurrentStreak = 1
 	}
 
-	err = s.repo.CreateHabitCheckingLog(ctx, habitId)
-	if err != nil {
-		return nil, err
-	}
-
-	currentStreak, err := s.repo.CheckHabitByID(ctx, habitId, habit.CurrentStreak)
+	currentStreak, err := s.repo.CheckingInTx(ctx, habitId, habit.CurrentStreak, today)
 	if err != nil {
 		return nil, err
 	}

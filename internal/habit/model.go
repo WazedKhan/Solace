@@ -39,3 +39,7 @@ type HabitQueryRequest struct {
 	QueryParams pagination.QueryParams
 	UserID      string
 }
+
+type CheckInRequest struct {
+	HabitID string `json:"habit_id"`
+}

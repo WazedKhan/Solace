@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/WazedKhan/Solace/internal/utils"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -153,4 +154,39 @@ func (r *Repository) CreateHabitCheckingLog(ctx context.Context, habitID string)
 		return utils.MapPostgresError(err)
 	}
 	return nil
+}
+
+func (r *Repository) CheckingInTx(ctx context.Context, habitID string, newStreak int, now time.Time) (*int, error) {
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx,
+		`
+		INSERT INTO habit_checking(habit_id, checked_date, created_at)
+		VALUES($1, $2, $3)
+		`, habitID, now.UTC(), now.UTC(),
+	)
+	if err != nil {
+		return nil, utils.MapPostgresError(err)
+	}
+
+	var currentStreak int
+	err = tx.QueryRow(ctx, `
+        UPDATE habits
+        SET last_checked_at=$1, current_streak=$2, updated_at=$3
+        WHERE id=$4
+        RETURNING current_streak
+    `, now.UTC(), newStreak, now.UTC(), habitID).Scan(&currentStreak)
+	if err != nil {
+		return nil, utils.MapPostgresError(err)
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &currentStreak, nil
 }
