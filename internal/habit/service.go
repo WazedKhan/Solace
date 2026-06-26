@@ -11,10 +11,10 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo HabitRepository
 }
 
-func NewService(repo *Repository) *Service {
+func NewService(repo HabitRepository) *Service {
 	return &Service{repo: repo}
 }
 
@@ -81,7 +81,7 @@ func (s *Service) CheckIn(ctx context.Context, userId, habitId string) (*int, er
 		habit.CurrentStreak = 1
 	}
 
-	currentStreak, err := s.repo.CheckingInTx(ctx, habitId, habit.CurrentStreak, today)
+	currentStreak, err := s.repo.CheckInTx(ctx, habitId, habit.CurrentStreak, today)
 	if err != nil {
 		return nil, err
 	}
