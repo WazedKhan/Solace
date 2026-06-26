@@ -26,7 +26,10 @@ tidy:
 	@go mod tidy
 
 test:
-	@go test ./...
+	@go test -v ./...
+
+vet:
+	@go vet ./...
 
 migrate-up:
 	@echo "⬆️ Running migrations up..."
