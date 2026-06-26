@@ -156,7 +156,7 @@ func (r *Repository) CreateHabitCheckingLog(ctx context.Context, habitID string)
 	return nil
 }
 
-func (r *Repository) CheckingInTx(ctx context.Context, habitID string, newStreak int, now time.Time) (*int, error) {
+func (r *Repository) CheckInTx(ctx context.Context, habitID string, newStreak int, now time.Time) (*int, error) {
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err
