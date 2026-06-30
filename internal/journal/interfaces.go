@@ -12,8 +12,8 @@ type JournalRepository interface {
 		ctx context.Context,
 		userID, status string,
 		pag pagination.QueryParams,
-	) ([]*Journal, error)
-	GetJournalByID(ctx context.Context, userID, journalID string) (*Journal, error)
+	) ([]*JournalWithMood, error)
+	GetJournalByID(ctx context.Context, userID, journalID string) (*JournalWithMood, error)
 	UpdateJournalByID(ctx context.Context, inp Journal) (*Journal, error)
 	SoftDeleteJournal(ctx context.Context, journalID, userID string) error
 }

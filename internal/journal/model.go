@@ -7,6 +7,11 @@ type Mood struct {
 	Name string
 }
 
+type MoodResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type Journal struct {
 	ID          string
 	UserID      string
@@ -20,15 +25,20 @@ type Journal struct {
 	DeletedAt   *time.Time
 }
 
+type JournalWithMood struct {
+	Journal
+	Mood *Mood
+}
+
 type JournalResponse struct {
-	ID          string     `json:"id"`
-	Mood        *Mood      `json:"mood,omitempty"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	ImageURL    *string    `json:"image_url,omitempty"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+	ID          string        `json:"id"`
+	Mood        *MoodResponse `json:"mood,omitempty"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	ImageURL    *string       `json:"image_url,omitempty"`
+	Status      string        `json:"status"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   *time.Time    `json:"updated_at,omitempty"`
 }
 
 type CreateJournalRequest struct {
