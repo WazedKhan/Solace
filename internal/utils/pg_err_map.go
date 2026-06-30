@@ -30,6 +30,12 @@ func MapPostgresError(err error) error {
 
 		case "22P02":
 			return ErrInvalidInput
+
+		case "23502": // not_null_violation
+			return ErrInvalidInput
+
+		case "23514": // check_violation
+			return ErrInvalidInput
 		}
 	}
 
