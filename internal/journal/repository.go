@@ -242,3 +242,18 @@ func (r *Repository) SoftDeleteJournal(ctx context.Context, journalID, userID st
 	}
 	return nil
 }
+
+func (r *Repository) GetMoodById(ctx context.Context, moodID string) (*Mood, error) {
+	query := `
+	SELECT id, name FROM moods WHERE id=$1;
+	`
+	var mood Mood
+	err := r.db.QueryRow(ctx, query, moodID).Scan(
+		&mood.ID,
+		&mood.Name,
+	)
+	if err != nil {
+		return nil, utils.MapPostgresError(err)
+	}
+	return &mood, nil
+}
