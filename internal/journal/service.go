@@ -17,10 +17,12 @@ func NewService(repo JournalRepository) *Service {
 }
 
 func (s *Service) CreateJournal(ctx context.Context, req CreateJournalRequest, userId string) (*Journal, error) {
-	if strings.TrimSpace(req.Title) == "" {
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
 		return nil, ErrTitleEmpty
 	}
-	if strings.TrimSpace(req.Description) == "" {
+	description := strings.TrimSpace(req.Description)
+	if description == "" {
 		return nil, ErrDescription
 	}
 
@@ -47,8 +49,8 @@ func (s *Service) CreateJournal(ctx context.Context, req CreateJournalRequest, u
 		ID:          uuid.NewString(),
 		UserID:      userId,
 		MoodID:      moodID,
-		Title:       req.Title,
-		Description: req.Description,
+		Title:       title,
+		Description: description,
 		ImageURL:    req.ImageURL,
 		Status:      status,
 		CreatedAt:   time.Now(),
