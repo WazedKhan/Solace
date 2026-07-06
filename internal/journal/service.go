@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/WazedKhan/Solace/internal/pagination"
 	"github.com/google/uuid"
 )
 
@@ -26,33 +27,22 @@ func (s *Service) CreateJournal(ctx context.Context, req CreateJournalRequest, u
 		return nil, ErrDescription
 	}
 
-	status := "draft"
+	status := JournalStatus(StatusDraft)
 	if req.Status != nil {
-		status = *req.Status
+		status = JournalStatus(strings.TrimSpace(*req.Status))
 	}
-	switch status {
-	case "draft", "published":
-	default:
+	if !status.IsValidStatus() {
 		return nil, ErrInvalidStatus
-	}
-
-	moodID := req.MoodID
-	if moodID != nil {
-		mood, err := s.repo.GetMoodById(ctx, *req.MoodID)
-		if err != nil {
-			return nil, err
-		}
-		moodID = &mood.ID
 	}
 
 	journal := Journal{
 		ID:          uuid.NewString(),
 		UserID:      userId,
-		MoodID:      moodID,
+		MoodID:      req.MoodID,
 		Title:       title,
 		Description: description,
 		ImageURL:    req.ImageURL,
-		Status:      status,
+		Status:      string(status),
 		CreatedAt:   time.Now(),
 	}
 
@@ -62,4 +52,91 @@ func (s *Service) CreateJournal(ctx context.Context, req CreateJournalRequest, u
 	}
 
 	return res, nil
+}
+
+// GetJournalsByUser can used for draft list as well by status key
+func (s *Service) GetJournalsByUser(
+	ctx context.Context,
+	userID, status string,
+	peg pagination.QueryParams,
+) ([]*JournalWithMood, error) {
+	trimmedStatus := JournalStatus(strings.TrimSpace(status))
+	if !trimmedStatus.IsValidStatus() {
+		return nil, ErrInvalidStatus
+	}
+	res, err := s.repo.GetJournalsByUser(ctx, userID, status, peg)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, err
+}
+
+func (s *Service) GetJournalByID(ctx context.Context, userID, journalID string) (*JournalWithMood, error) {
+	res, err := s.repo.GetJournalByID(ctx, userID, journalID)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (s *Service) UpdateJournalByID(
+	ctx context.Context,
+	userID, journalID string,
+	req UpdateJournalRequest,
+) (*Journal, error) {
+	existing, err := s.repo.GetJournalByID(ctx, userID, journalID)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Title != nil {
+		existing.Title = *req.Title
+	}
+
+	if req.Description != nil {
+		existing.Description = *req.Description
+	}
+
+	if req.MoodID != nil {
+		existing.MoodID = req.MoodID
+	}
+
+	if req.Status != nil {
+		if !JournalStatus(*req.Status).IsValidStatus() {
+			return nil, ErrInvalidStatus
+		}
+		existing.Status = *req.Status
+	}
+
+	if req.ImageURL != nil {
+		existing.ImageURL = req.ImageURL
+	}
+	now := time.Now()
+
+	journal := Journal{
+		ID:          journalID,
+		UserID:      userID,
+		Title:       existing.Title,
+		MoodID:      existing.MoodID,
+		Description: existing.Description,
+		ImageURL:    existing.ImageURL,
+		Status:      existing.Status,
+		UpdatedAt:   &now,
+	}
+
+	res, err := s.repo.UpdateJournalByID(ctx, journal)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (s *Service) SoftDeleteJournal(ctx context.Context, userID, journalID string) error {
+	err := s.repo.SoftDeleteJournal(ctx, journalID, userID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
