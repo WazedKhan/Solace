@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/WazedKhan/Solace/configs"
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 	"github.com/WazedKhan/Solace/internal/pagination"
 	"github.com/WazedKhan/Solace/internal/utils"
@@ -87,6 +88,8 @@ func (h *Handler) GetJournals(w http.ResponseWriter, r *http.Request) {
 	limit, err := strconv.Atoi(query.Get("limit"))
 	if err != nil || limit < 1 {
 		limit = 10
+	} else if limit > configs.FetchLimit {
+		limit = configs.FetchLimit
 	}
 
 	pag := pagination.QueryParams{
@@ -96,9 +99,6 @@ func (h *Handler) GetJournals(w http.ResponseWriter, r *http.Request) {
 	res, err := h.service.GetJournalsByUser(r.Context(), userID, string(StatusPublished), pag)
 	if err != nil {
 		switch err {
-		case utils.ErrNotFound:
-			http.Error(w, "no journal found!", http.StatusBadRequest)
-			return
 		default:
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
@@ -107,20 +107,7 @@ func (h *Handler) GetJournals(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]JournalResponse, 0, len(res))
 	for _, item := range res {
-		mood := MoodResponse{
-			ID:   item.Mood.ID,
-			Name: item.Mood.Name,
-		}
-		resp = append(resp, JournalResponse{
-			ID:          item.ID,
-			Title:       item.Title,
-			Description: item.Description,
-			Status:      item.Status,
-			ImageURL:    item.ImageURL,
-			CreatedAt:   item.CreatedAt,
-			UpdatedAt:   item.UpdatedAt,
-			Mood:        &mood,
-		})
+		resp = append(resp, toJournalResponse(item))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -145,6 +132,8 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 	limit, err := strconv.Atoi(query.Get("limit"))
 	if err != nil || limit < 1 {
 		limit = 10
+	} else if limit > configs.FetchLimit {
+		limit = configs.FetchLimit
 	}
 
 	pag := pagination.QueryParams{
@@ -154,9 +143,6 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 	res, err := h.service.GetJournalsByUser(r.Context(), userID, string(StatusDraft), pag)
 	if err != nil {
 		switch err {
-		case utils.ErrNotFound:
-			http.Error(w, "no journal found!", http.StatusBadRequest)
-			return
 		default:
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
@@ -165,20 +151,7 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]JournalResponse, 0, len(res))
 	for _, item := range res {
-		mood := MoodResponse{
-			ID:   item.Mood.ID,
-			Name: item.Mood.Name,
-		}
-		resp = append(resp, JournalResponse{
-			ID:          item.ID,
-			Title:       item.Title,
-			Description: item.Description,
-			Status:      item.Status,
-			ImageURL:    item.ImageURL,
-			CreatedAt:   item.CreatedAt,
-			UpdatedAt:   item.UpdatedAt,
-			Mood:        &mood,
-		})
+		resp = append(resp, toJournalResponse(item))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
