@@ -44,46 +44,6 @@ func (r *Repository) CreateUser(ctx context.Context, user User) (*User, error) {
 	return &created, nil
 }
 
-func (r *Repository) GetUsers(ctx context.Context, q GetUserQuery) ([]User, error) {
-	query := `
-	SELECT id, name, email, created_at
-	FROM users
-	WHERE (
-		$1 = ''
-		OR name ILIKE '%' || $1 || '%'
-		OR email ILIKE '%' || $1 || '%'
-	)
-	ORDER BY created_at DESC
-	LIMIT $2 OFFSET $3
-`
-	rows, err := r.db.Query(ctx, query, q.Search, q.Limit, q.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var users []User
-	for rows.Next() {
-		var user User
-
-		err := rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Email,
-			&user.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return users, nil
-}
-
 func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `SELECT id, name, email, password, created_at FROM users WHERE email = $1`
 
