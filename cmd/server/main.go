@@ -11,6 +11,7 @@ import (
 	"github.com/WazedKhan/Solace/internal/auth"
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 	"github.com/WazedKhan/Solace/internal/habit"
+	"github.com/WazedKhan/Solace/internal/journal"
 	"github.com/WazedKhan/Solace/middleware"
 	"github.com/joho/godotenv"
 )
@@ -56,6 +57,11 @@ func main() {
 	habitService := habit.NewService(habitRepo)
 	habitHandler := habit.NewHandler(habitService)
 
+	// journal
+	journalRepo := journal.NewRepository(pool)
+	journalService := journal.NewService(journalRepo)
+	journalHandler := journal.NewHandler(journalService)
+
 	mux.HandleFunc("POST /api/v1/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/login", authHandler.Login)
 	mux.Handle(
@@ -85,6 +91,50 @@ func main() {
 		middleware.AuthMiddleware(
 			generator,
 			http.HandlerFunc(habitHandler.CheckIn),
+		),
+	)
+
+	// journal routes
+	mux.Handle(
+		"POST /api/v1/journals",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.CreateJournal),
+		),
+	)
+	mux.Handle(
+		"GET /api/v1/journals",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.GetJournals),
+		),
+	)
+	mux.Handle(
+		"GET /api/v1/journals/drafts",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.GetDrafts),
+		),
+	)
+	mux.Handle(
+		"GET /api/v1/journals/{id}",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.GetJournalByID),
+		),
+	)
+	mux.Handle(
+		"PATCH /api/v1/journals/{id}",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.UpdateJournalByID),
+		),
+	)
+	mux.Handle(
+		"DELETE /api/v1/journals/{id}",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.SoftDeleteJournal),
 		),
 	)
 
