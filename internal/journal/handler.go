@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 
-	"github.com/WazedKhan/Solace/configs"
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 	"github.com/WazedKhan/Solace/internal/pagination"
 	"github.com/WazedKhan/Solace/internal/utils"
@@ -79,23 +77,8 @@ func (h *Handler) GetJournals(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return
 	}
-	query := r.URL.Query()
 
-	offset, err := strconv.Atoi(query.Get("offset"))
-	if err != nil || offset < 0 {
-		offset = 0
-	}
-	limit, err := strconv.Atoi(query.Get("limit"))
-	if err != nil || limit < 1 {
-		limit = 10
-	} else if limit > configs.FetchLimit {
-		limit = configs.FetchLimit
-	}
-
-	pag := pagination.QueryParams{
-		Limit:  limit,
-		Offset: offset,
-	}
+	pag := pagination.ParsePagination(r)
 	res, err := h.service.GetJournalsByUser(r.Context(), userID, string(StatusPublished), pag)
 	if err != nil {
 		switch err {
@@ -123,23 +106,8 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return
 	}
-	query := r.URL.Query()
 
-	offset, err := strconv.Atoi(query.Get("offset"))
-	if err != nil || offset < 0 {
-		offset = 0
-	}
-	limit, err := strconv.Atoi(query.Get("limit"))
-	if err != nil || limit < 1 {
-		limit = 10
-	} else if limit > configs.FetchLimit {
-		limit = configs.FetchLimit
-	}
-
-	pag := pagination.QueryParams{
-		Limit:  limit,
-		Offset: offset,
-	}
+	pag := pagination.ParsePagination(r)
 	res, err := h.service.GetJournalsByUser(r.Context(), userID, string(StatusDraft), pag)
 	if err != nil {
 		switch err {
@@ -159,4 +127,120 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Println(err)
 	}
+}
+
+func (h *Handler) GetJournalByID(w http.ResponseWriter, r *http.Request) {
+	journalID := r.PathValue("id")
+	if journalID == "" {
+		http.Error(w, "journal id is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	res, err := h.service.GetJournalByID(r.Context(), userID, journalID)
+	if err != nil {
+		switch err {
+		case utils.ErrNotFound:
+			http.Error(w, "journal not found", http.StatusNotFound)
+			return
+
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	resp := toJournalResponse(res)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Println(err)
+	}
+}
+
+func (h *Handler) UpdateJournalByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	journalID := r.PathValue("id")
+	if journalID == "" {
+		http.Error(w, "journal id is required", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateJournalRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	res, err := h.service.UpdateJournalByID(r.Context(), userID, journalID, req)
+	if err != nil {
+		switch err {
+		case ErrInvalidStatus:
+			http.Error(w, "invalid status", http.StatusBadRequest)
+			return
+
+		case utils.ErrNotFound:
+			http.Error(w, "journal not found!", http.StatusNotFound)
+			return
+
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	resp := JournalResponse{
+		ID:          res.ID,
+		Title:       res.Title,
+		Description: res.Description,
+		Status:      res.Status,
+		ImageURL:    res.ImageURL,
+		CreatedAt:   res.CreatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Println(err)
+	}
+}
+
+func (h *Handler) SoftDeleteJournal(w http.ResponseWriter, r *http.Request) {
+	userID, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	journalID := r.PathValue("id")
+	if journalID == "" {
+		http.Error(w, "journal id required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.SoftDeleteJournal(r.Context(), userID, journalID)
+	if err != nil {
+		switch err {
+		case utils.ErrNotFound:
+			http.Error(w, "journal is not found", http.StatusNotFound)
+			return
+
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
