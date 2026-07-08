@@ -29,13 +29,6 @@ type UserResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type GetUserQuery struct {
-	Limit  int
-	Offset int
-	Search string
-	Sort   string
-}
-
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

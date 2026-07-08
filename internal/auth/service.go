@@ -48,6 +48,9 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*User, err
 
 	created, err := s.repo.CreateUser(ctx, user)
 	if err != nil {
+		if err == utils.ErrAlreadyExists {
+			return nil, ErrEmailAlreadyExists
+		}
 		return nil, err
 	}
 
@@ -82,10 +85,5 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*LoginResponse, 
 }
 
 func (s *Service) Me(ctx context.Context, userID string) (*User, error) {
-	user, err := s.repo.GetUserByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
+	return s.repo.GetUserByID(ctx, userID)
 }
