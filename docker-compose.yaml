@@ -1,4 +1,20 @@
+name: solace
 services:
+  solace:
+    image: solace-be:latest
+    build: .
+    container_name: solace
+    environment:
+      DSN: "postgres://solace:strong-password@solace-db:5432/solace?sslmode=disable"
+      JWT_SECRET: "very-strong-secret-key"
+      TOKEN_VALID_PERIOD: "8"
+
+    ports:
+      - "8000:8000"
+    depends_on:
+      solace-db:
+        condition: service_healthy
+
   solace-db:
     image: postgres:17
     ports:
@@ -7,6 +23,12 @@ services:
       POSTGRES_USER: solace
       POSTGRES_PASSWORD: strong-password
       POSTGRES_DB: solace
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solace -d solace"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
