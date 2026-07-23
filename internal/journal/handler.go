@@ -7,15 +7,20 @@ import (
 
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 	"github.com/WazedKhan/Solace/internal/pagination"
+	"github.com/WazedKhan/Solace/internal/storage"
 	"github.com/WazedKhan/Solace/internal/utils"
 )
 
 type Handler struct {
 	service *Service
+	store   storage.Storage
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, store storage.Storage) *Handler {
+	return &Handler{
+		service: service,
+		store:   store,
+	}
 }
 
 func (h *Handler) CreateJournal(w http.ResponseWriter, r *http.Request) {
@@ -243,4 +248,47 @@ func (h *Handler) SoftDeleteJournal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) ConfirmUpload(w http.ResponseWriter, r *http.Request) {
+	userID, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	journalID := r.PathValue("id")
+	if journalID == "" {
+		http.Error(w, "journal id required", http.StatusBadRequest)
+		return
+	}
+
+	var req ConfirmUploadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.ConfirmUpload(r.Context(), userID, journalID, req.Key)
+	if err != nil {
+		switch err {
+		case ErrInvalidKey:
+			http.Error(w, "image key is invalid", http.StatusBadRequest)
+			return
+
+		case ErrForbidden:
+			http.Error(w, "request is not allowed", http.StatusForbidden)
+			return
+
+		case ErrImageNotFound:
+			http.Error(w, "image not found with provided key", http.StatusNotFound)
+			return
+
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

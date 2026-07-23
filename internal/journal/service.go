@@ -2,19 +2,25 @@ package journal
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/WazedKhan/Solace/internal/pagination"
+	storage "github.com/WazedKhan/Solace/internal/storage"
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo JournalRepository
+	repo    JournalRepository
+	storage storage.Storage
 }
 
-func NewService(repo JournalRepository) *Service {
-	return &Service{repo: repo}
+func NewService(repo JournalRepository, store storage.Storage) *Service {
+	return &Service{
+		repo:    repo,
+		storage: store,
+	}
 }
 
 func (s *Service) CreateJournal(ctx context.Context, req CreateJournalRequest, userId string) (*Journal, error) {
@@ -138,5 +144,31 @@ func (s *Service) SoftDeleteJournal(ctx context.Context, userID, journalID strin
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *Service) ConfirmUpload(ctx context.Context, userID, journalID, key string) error {
+	parts := strings.Split(key, "/")
+	if len(parts) < 2 {
+		return ErrInvalidKey
+	}
+	keyUserID := parts[1]
+	if keyUserID != userID {
+		return ErrForbidden
+	}
+
+	ok, err := s.storage.Exists(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to verify upload: %w", err)
+	}
+	if !ok {
+		return ErrImageNotFound
+	}
+
+	err = s.repo.UpdateImageURL(ctx, journalID, userID, key)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -56,3 +56,7 @@ type UpdateJournalRequest struct {
 	Status      *string `json:"status,omitempty"`
 	ImageURL    *string `json:"image_url"`
 }
+
+type ConfirmUploadRequest struct {
+	Key string `json:"key"`
+}
