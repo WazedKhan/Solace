@@ -7,19 +7,16 @@ import (
 
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 	"github.com/WazedKhan/Solace/internal/pagination"
-	"github.com/WazedKhan/Solace/internal/storage"
 	"github.com/WazedKhan/Solace/internal/utils"
 )
 
 type Handler struct {
 	service *Service
-	store   storage.Storage
 }
 
-func NewHandler(service *Service, store storage.Storage) *Handler {
+func NewHandler(service *Service) *Handler {
 	return &Handler{
 		service: service,
-		store:   store,
 	}
 }
 
@@ -291,4 +288,35 @@ func (h *Handler) ConfirmUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) PresignUpload(w http.ResponseWriter, r *http.Request) {
+	userID, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	var req PresignUploadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	key, uploadURL, err := h.service.PresignUpload(r.Context(), userID, req.ContentType)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	resp := PresignUploadResponse{
+		Key: key,
+		URL: uploadURL,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Println(err)
+	}
 }

@@ -60,3 +60,12 @@ type UpdateJournalRequest struct {
 type ConfirmUploadRequest struct {
 	Key string `json:"key"`
 }
+
+type PresignUploadResponse struct {
+	URL string `json:"url"`
+	Key string `json:"key"`
+}
+
+type PresignUploadRequest struct {
+	ContentType string `json:"content_type"`
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -12,13 +13,17 @@ import (
 	jwt_token "github.com/WazedKhan/Solace/internal/auth/token"
 	"github.com/WazedKhan/Solace/internal/habit"
 	"github.com/WazedKhan/Solace/internal/journal"
+	"github.com/WazedKhan/Solace/internal/storage"
 	"github.com/WazedKhan/Solace/middleware"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	_ = godotenv.Load()
 	mux := http.NewServeMux()
+	ctx := context.Background()
 
 	dsn := os.Getenv("DSN")
 	if dsn == "" {
@@ -47,6 +52,23 @@ func main() {
 		time.Duration(ttlHours)*time.Hour,
 	)
 
+	// bucket initialization
+	bucketName := os.Getenv("S3_BUCKET_NAME")
+	if bucketName == "" {
+		log.Fatal("S3_BUCKET_NAME is missing")
+	}
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		log.Fatal("AWS_REGION is missing")
+	}
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	if err != nil {
+		log.Fatal(err)
+	}
+	s3Client := s3.NewFromConfig(cfg)
+	presingedClient := s3.NewPresignClient(s3Client)
+	storage := storage.NewS3Storage(s3Client, presingedClient, bucketName)
+
 	// auth
 	repo := auth.NewRepository(pool)
 	service := auth.NewService(repo, generator)
@@ -59,7 +81,7 @@ func main() {
 
 	// journal
 	journalRepo := journal.NewRepository(pool)
-	journalService := journal.NewService(journalRepo)
+	journalService := journal.NewService(journalRepo, storage)
 	journalHandler := journal.NewHandler(journalService)
 
 	mux.HandleFunc("POST /api/v1/register", authHandler.Register)
@@ -114,6 +136,21 @@ func main() {
 		middleware.AuthMiddleware(
 			generator,
 			http.HandlerFunc(journalHandler.GetDrafts),
+		),
+	)
+	// s3 image upload routes
+	mux.Handle(
+		"POST /api/v1/presign-upload",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.PresignUpload),
+		),
+	)
+	mux.Handle(
+		"POST /api/v1/journals/{id}/confirm-upload",
+		middleware.AuthMiddleware(
+			generator,
+			http.HandlerFunc(journalHandler.ConfirmUpload),
 		),
 	)
 	mux.Handle(

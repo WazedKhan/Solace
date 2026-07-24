@@ -3,6 +3,8 @@ package journal
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -171,4 +173,32 @@ func (s *Service) ConfirmUpload(ctx context.Context, userID, journalID, key stri
 	}
 
 	return nil
+}
+
+func (s *Service) PresignUpload(
+	ctx context.Context,
+	userID, contentType string,
+) (key, uploadURL string, err error) {
+	objectKey := uuid.NewString()
+	var contentFormat string
+
+	switch contentType {
+	case "image/jpeg":
+		contentFormat = "jpg"
+	default:
+		contentFormat = "png"
+	}
+
+	uploadKey := fmt.Sprintf("journals/%s/%s.%s", userID, objectKey, contentFormat)
+	seconds, err := strconv.Atoi(os.Getenv("UPLOAD_URL_EXPIRY"))
+	if err != nil {
+		return "", "", fmt.Errorf("failed to upload expiry value into int, %w", err)
+	}
+	expire_duration := time.Duration(seconds) * time.Second
+
+	presignedURL, err := s.storage.PresignedUploadURL(ctx, uploadKey, contentFormat, expire_duration)
+	if err != nil {
+		return "", "", err
+	}
+	return uploadKey, presignedURL, nil
 }

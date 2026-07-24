@@ -4,10 +4,12 @@ services:
     image: solace-be:latest
     build: .
     container_name: solace
-    environment:
-      DSN: "postgres://solace:strong-password@solace-db:5432/solace?sslmode=disable"
-      JWT_SECRET: "very-strong-secret-key"
-      TOKEN_VALID_PERIOD: "8"
+    # environment:
+    #   DSN: "postgres://solace:strong-password@solace-db:5432/solace?sslmode=disable"
+    #   JWT_SECRET: "very-strong-secret-key"
+    #   TOKEN_VALID_PERIOD: "8"
+    env_file:
+      - .env
 
     ports:
       - "8000:8000"
