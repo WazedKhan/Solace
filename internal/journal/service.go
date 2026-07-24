@@ -3,6 +3,7 @@ package journal
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -77,6 +78,13 @@ func (s *Service) GetJournalsByUser(
 		return nil, err
 	}
 
+	for _, journal := range res {
+		if journal.ImageURL != nil {
+			presignedURL := s.resolveImageURL(ctx, *journal.ImageURL)
+			journal.ImageURL = &presignedURL
+		}
+	}
+
 	return res, err
 }
 
@@ -84,6 +92,11 @@ func (s *Service) GetJournalByID(ctx context.Context, userID, journalID string) 
 	res, err := s.repo.GetJournalByID(ctx, userID, journalID)
 	if err != nil {
 		return nil, err
+	}
+
+	if res.ImageURL != nil {
+		presignedURL := s.resolveImageURL(ctx, *res.ImageURL)
+		res.ImageURL = &presignedURL
 	}
 
 	return res, nil
@@ -201,4 +214,26 @@ func (s *Service) PresignUpload(
 		return "", "", err
 	}
 	return uploadKey, presignedURL, nil
+}
+
+// ========================Helper Function Section===========================
+
+func (s *Service) resolveImageURL(ctx context.Context, key string) string {
+	if key == "" {
+		return ""
+	}
+	seconds, err := strconv.Atoi(os.Getenv("RETRIEVE_URL_EXPIRY"))
+	if err != nil {
+		log.Printf("failed to fetch expiry value fro, env, %s", err)
+		return ""
+	}
+	expire_duration := time.Duration(seconds) * time.Second
+
+	url, err := s.storage.PresignedURL(ctx, key, expire_duration)
+	if err != nil {
+		log.Printf("failed to fetch presigned url, %s:", err)
+		return ""
+	}
+
+	return url
 }

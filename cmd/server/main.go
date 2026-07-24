@@ -138,9 +138,8 @@ func main() {
 			http.HandlerFunc(journalHandler.GetDrafts),
 		),
 	)
-	// s3 image upload routes
 	mux.Handle(
-		"POST /api/v1/presign-upload",
+		"POST /api/v1/journals/presign-upload",
 		middleware.AuthMiddleware(
 			generator,
 			http.HandlerFunc(journalHandler.PresignUpload),
