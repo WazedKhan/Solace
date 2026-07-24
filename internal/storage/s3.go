@@ -84,3 +84,18 @@ func (s *S3Storage) PresignedURL(ctx context.Context, key string, expiry time.Du
 
 	return res.URL, nil
 }
+
+func (s *S3Storage) PresignedUploadURL(ctx context.Context, key, contentType string, expiry time.Duration) (string, error) {
+	res, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucketName),
+		Key:         aws.String(key),
+		ContentType: aws.String(contentType),
+	}, func(po *s3.PresignOptions) {
+		po.Expires = expiry
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned url, err: %w", err)
+	}
+
+	return res.URL, nil
+}

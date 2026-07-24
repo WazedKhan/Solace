@@ -2,19 +2,28 @@ package journal
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/WazedKhan/Solace/internal/pagination"
+	storage "github.com/WazedKhan/Solace/internal/storage"
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo JournalRepository
+	repo    JournalRepository
+	storage storage.Storage
 }
 
-func NewService(repo JournalRepository) *Service {
-	return &Service{repo: repo}
+func NewService(repo JournalRepository, store storage.Storage) *Service {
+	return &Service{
+		repo:    repo,
+		storage: store,
+	}
 }
 
 func (s *Service) CreateJournal(ctx context.Context, req CreateJournalRequest, userId string) (*Journal, error) {
@@ -69,6 +78,13 @@ func (s *Service) GetJournalsByUser(
 		return nil, err
 	}
 
+	for _, journal := range res {
+		if journal.ImageURL != nil {
+			presignedURL := s.resolveImageURL(ctx, *journal.ImageURL)
+			journal.ImageURL = &presignedURL
+		}
+	}
+
 	return res, err
 }
 
@@ -76,6 +92,11 @@ func (s *Service) GetJournalByID(ctx context.Context, userID, journalID string) 
 	res, err := s.repo.GetJournalByID(ctx, userID, journalID)
 	if err != nil {
 		return nil, err
+	}
+
+	if res.ImageURL != nil {
+		presignedURL := s.resolveImageURL(ctx, *res.ImageURL)
+		res.ImageURL = &presignedURL
 	}
 
 	return res, nil
@@ -139,4 +160,80 @@ func (s *Service) SoftDeleteJournal(ctx context.Context, userID, journalID strin
 		return err
 	}
 	return nil
+}
+
+func (s *Service) ConfirmUpload(ctx context.Context, userID, journalID, key string) error {
+	parts := strings.Split(key, "/")
+	if len(parts) < 2 {
+		return ErrInvalidKey
+	}
+	keyUserID := parts[1]
+	if keyUserID != userID {
+		return ErrForbidden
+	}
+
+	ok, err := s.storage.Exists(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to verify upload: %w", err)
+	}
+	if !ok {
+		return ErrImageNotFound
+	}
+
+	err = s.repo.UpdateImageURL(ctx, journalID, userID, key)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) PresignUpload(
+	ctx context.Context,
+	userID, contentType string,
+) (key, uploadURL string, err error) {
+	objectKey := uuid.NewString()
+	var contentFormat string
+
+	switch contentType {
+	case "image/jpeg":
+		contentFormat = "jpg"
+	default:
+		contentFormat = "png"
+	}
+
+	uploadKey := fmt.Sprintf("journals/%s/%s.%s", userID, objectKey, contentFormat)
+	seconds, err := strconv.Atoi(os.Getenv("UPLOAD_URL_EXPIRY"))
+	if err != nil {
+		return "", "", fmt.Errorf("failed to upload expiry value into int, %w", err)
+	}
+	expire_duration := time.Duration(seconds) * time.Second
+
+	presignedURL, err := s.storage.PresignedUploadURL(ctx, uploadKey, contentFormat, expire_duration)
+	if err != nil {
+		return "", "", err
+	}
+	return uploadKey, presignedURL, nil
+}
+
+// ========================Helper Function Section===========================
+
+func (s *Service) resolveImageURL(ctx context.Context, key string) string {
+	if key == "" {
+		return ""
+	}
+	seconds, err := strconv.Atoi(os.Getenv("RETRIEVE_URL_EXPIRY"))
+	if err != nil {
+		log.Printf("failed to fetch expiry value fro, env, %s", err)
+		return ""
+	}
+	expire_duration := time.Duration(seconds) * time.Second
+
+	url, err := s.storage.PresignedURL(ctx, key, expire_duration)
+	if err != nil {
+		log.Printf("failed to fetch presigned url, %s:", err)
+		return ""
+	}
+
+	return url
 }

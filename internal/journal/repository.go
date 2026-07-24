@@ -257,3 +257,23 @@ func (r *Repository) GetMoodById(ctx context.Context, moodID string) (*Mood, err
 	}
 	return &mood, nil
 }
+
+func (r *Repository) UpdateImageURL(ctx context.Context, journalID, userID, key string) error {
+	query := `
+	UPDATE journals
+	SET
+		image_url = $1
+	WHERE id=$2 AND user_id=$3 AND deleted_at IS NULL;
+	`
+
+	res, err := r.db.Exec(ctx, query, key, journalID, userID)
+	if err != nil {
+		return utils.MapPostgresError(err)
+	}
+
+	if res.RowsAffected() == 0 {
+		return utils.ErrNotFound
+	}
+
+	return nil
+}

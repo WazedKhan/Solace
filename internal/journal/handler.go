@@ -15,7 +15,9 @@ type Handler struct {
 }
 
 func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+	return &Handler{
+		service: service,
+	}
 }
 
 func (h *Handler) CreateJournal(w http.ResponseWriter, r *http.Request) {
@@ -243,4 +245,78 @@ func (h *Handler) SoftDeleteJournal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) ConfirmUpload(w http.ResponseWriter, r *http.Request) {
+	userID, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	journalID := r.PathValue("id")
+	if journalID == "" {
+		http.Error(w, "journal id required", http.StatusBadRequest)
+		return
+	}
+
+	var req ConfirmUploadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.ConfirmUpload(r.Context(), userID, journalID, req.Key)
+	if err != nil {
+		switch err {
+		case ErrInvalidKey:
+			http.Error(w, "image key is invalid", http.StatusBadRequest)
+			return
+
+		case ErrForbidden:
+			http.Error(w, "request is not allowed", http.StatusForbidden)
+			return
+
+		case ErrImageNotFound:
+			http.Error(w, "image not found with provided key", http.StatusNotFound)
+			return
+
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) PresignUpload(w http.ResponseWriter, r *http.Request) {
+	userID, ok := jwt_token.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	var req PresignUploadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	key, uploadURL, err := h.service.PresignUpload(r.Context(), userID, req.ContentType)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	resp := PresignUploadResponse{
+		Key: key,
+		URL: uploadURL,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Println(err)
+	}
 }

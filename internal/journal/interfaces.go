@@ -17,4 +17,5 @@ type JournalRepository interface {
 	UpdateJournalByID(ctx context.Context, inp Journal) (*Journal, error)
 	SoftDeleteJournal(ctx context.Context, journalID, userID string) error
 	GetMoodById(ctx context.Context, moodID string) (*Mood, error)
+	UpdateImageURL(ctx context.Context, journalID, userID, key string) error
 }

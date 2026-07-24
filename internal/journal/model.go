@@ -56,3 +56,16 @@ type UpdateJournalRequest struct {
 	Status      *string `json:"status,omitempty"`
 	ImageURL    *string `json:"image_url"`
 }
+
+type ConfirmUploadRequest struct {
+	Key string `json:"key"`
+}
+
+type PresignUploadResponse struct {
+	URL string `json:"url"`
+	Key string `json:"key"`
+}
+
+type PresignUploadRequest struct {
+	ContentType string `json:"content_type"`
+}
