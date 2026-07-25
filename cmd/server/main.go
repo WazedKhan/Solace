@@ -174,7 +174,7 @@ func main() {
 		),
 	)
 
-	handler := middleware.RequestLog(mux)
+	handler := middleware.CORS(middleware.RequestLog(mux))
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
